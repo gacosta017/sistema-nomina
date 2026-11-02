@@ -177,3 +177,17 @@ class EmpleadoPorComision(Empleado):
 
     def beneficios(self) -> list:
         return [beneficio_bono_alimentacion()]  # empleado permanente
+
+
+class EmpleadoTemporal(Empleado):
+    """Salario fijo mensual con contrato a término definido. Sin bonos ni beneficios."""
+
+    def __init__(self, nombre: str, salario_mensual, meses_contrato, deducciones=None):
+        super().__init__(nombre, 0, deducciones)
+        self.salario_mensual = _validar_no_negativo(salario_mensual, "El salario mensual")
+        self.meses_contrato = a_decimal(meses_contrato)
+        if self.meses_contrato <= 0:
+            raise ValidacionError("Un contrato temporal debe tener duración mayor a 0 meses")
+
+    def calcular_devengado(self) -> Decimal:
+        return self.salario_mensual
