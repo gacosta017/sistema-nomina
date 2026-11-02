@@ -23,7 +23,8 @@ PORCENTAJE_BONO_ASALARIADO = Decimal("0.10")
 HORAS_NORMALES_SEMANA = Decimal("40")
 FACTOR_HORA_EXTRA = Decimal("1.5")
 ANIOS_PARA_FONDO_AHORRO = 1
-
+UMBRAL_VENTAS_BONO = Decimal("20000000")
+PORCENTAJE_BONO_VENTAS = Decimal("0.03")
 
 def _validar_no_negativo(valor: Decimal, campo: str) -> Decimal:
     """Valida que un valor numérico no sea negativo y lo devuelve como Decimal."""
@@ -145,3 +146,34 @@ class EmpleadoPorHoras(Empleado):
         if self.anios_antiguedad > ANIOS_PARA_FONDO_AHORRO and self.acepta_fondo_ahorro:
             return [beneficio_fondo_ahorro()]
         return []
+
+
+class EmpleadoPorComision(Empleado):
+    """Salario base + comisión; bono extra del 3 % si las ventas superan $20.000.000."""
+
+    def __init__(
+        self,
+        nombre: str,
+        salario_base,
+        porcentaje_comision,
+        ventas,
+        anios_antiguedad=0,
+        deducciones=None,
+    ):
+        super().__init__(nombre, anios_antiguedad, deducciones)
+        self.salario_base = _validar_no_negativo(salario_base, "El salario base")
+        self.porcentaje_comision = _validar_no_negativo(
+            porcentaje_comision, "El porcentaje de comisión"
+        )
+        self.ventas = _validar_no_negativo(ventas, "Las ventas")
+
+    def calcular_devengado(self) -> Decimal:
+        return self.salario_base + self.ventas * self.porcentaje_comision
+
+    def calcular_bonos(self) -> Decimal:
+        if self.ventas > UMBRAL_VENTAS_BONO:
+            return self.ventas * PORCENTAJE_BONO_VENTAS
+        return Decimal("0")
+
+    def beneficios(self) -> list:
+        return [beneficio_bono_alimentacion()]  # empleado permanente
