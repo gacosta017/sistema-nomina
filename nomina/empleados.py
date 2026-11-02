@@ -9,8 +9,9 @@ from typing import Optional, Sequence
 
 from nomina.conceptos import (
     Concepto,
-    beneficio_bono_alimentacion,
     deducciones_obligatorias,
+    beneficio_bono_alimentacion,
+    beneficio_fondo_ahorro,
 )
 from nomina.dinero import a_decimal, redondear
 from nomina.excepciones import NetoNegativoError, ValidacionError
@@ -19,6 +20,9 @@ from nomina.resultado import ResultadoNomina
 # Reglas de negocio del enunciado.
 ANIOS_PARA_BONO_ASALARIADO = 5
 PORCENTAJE_BONO_ASALARIADO = Decimal("0.10")
+HORAS_NORMALES_SEMANA = Decimal("40")
+FACTOR_HORA_EXTRA = Decimal("1.5")
+ANIOS_PARA_FONDO_AHORRO = 1
 
 
 def _validar_no_negativo(valor: Decimal, campo: str) -> Decimal:
@@ -110,3 +114,34 @@ class EmpleadoAsalariado(Empleado):
 
     def beneficios(self) -> list:
         return [beneficio_bono_alimentacion()]  # empleado permanente
+
+
+class EmpleadoPorHoras(Empleado):
+    """Paga por horas; las horas sobre 40 se pagan a 1,5 x. Sin bonos."""
+
+    def __init__(
+        self,
+        nombre: str,
+        tarifa_hora,
+        horas_trabajadas,
+        anios_antiguedad=0,
+        acepta_fondo_ahorro: bool = False,
+        deducciones=None,
+    ):
+        super().__init__(nombre, anios_antiguedad, deducciones)
+        self.tarifa_hora = _validar_no_negativo(tarifa_hora, "La tarifa por hora")
+        self.horas_trabajadas = _validar_no_negativo(horas_trabajadas, "Las horas trabajadas")
+        self.acepta_fondo_ahorro = acepta_fondo_ahorro
+
+    def calcular_devengado(self) -> Decimal:
+        horas_normales = min(self.horas_trabajadas, HORAS_NORMALES_SEMANA)
+        horas_extras = max(self.horas_trabajadas - HORAS_NORMALES_SEMANA, Decimal("0"))
+        return (
+            horas_normales * self.tarifa_hora
+            + horas_extras * self.tarifa_hora * FACTOR_HORA_EXTRA
+        )
+
+    def beneficios(self) -> list:
+        if self.anios_antiguedad > ANIOS_PARA_FONDO_AHORRO and self.acepta_fondo_ahorro:
+            return [beneficio_fondo_ahorro()]
+        return []
